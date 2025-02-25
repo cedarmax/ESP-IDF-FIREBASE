@@ -1,0 +1,5 @@
+dependencies:
+  firebase_client:
+    git: https://github.com/mobizt/ESP-firebase-client.git
+  cJSON:
+    git: https://github.com/DaveGamble/cJSON.git

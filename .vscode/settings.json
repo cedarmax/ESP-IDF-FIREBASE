@@ -1,0 +1,10 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "idf.espIdfPath": "/home/cedar/esp/v5.4/esp-idf",
+    "idf.openOcdConfigs": [
+        "board/esp32c6-builtin.cfg"
+    ],
+    "idf.port": "/dev/ttyS0",
+    "idf.toolsPath": "/home/cedar/.espressif",
+    "C_Cpp.errorSquiggles": "enabled"
+}
