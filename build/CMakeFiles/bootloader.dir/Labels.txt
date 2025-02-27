@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/cedar/ESP-IDF-FIREBASE/build/CMakeFiles/bootloader
+/home/cedar/ESP-IDF-FIREBASE/build/CMakeFiles/bootloader.rule
+/home/cedar/ESP-IDF-FIREBASE/build/CMakeFiles/bootloader-complete.rule
+/home/cedar/ESP-IDF-FIREBASE/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/cedar/ESP-IDF-FIREBASE/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/cedar/ESP-IDF-FIREBASE/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/cedar/ESP-IDF-FIREBASE/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/cedar/ESP-IDF-FIREBASE/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/cedar/ESP-IDF-FIREBASE/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/cedar/ESP-IDF-FIREBASE/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
