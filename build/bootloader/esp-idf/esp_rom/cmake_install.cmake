@@ -1,4 +1,4 @@
-# Install script for directory: /home/cedar/esp/v5.4/esp-idf/components/esp_rom
+# Install script for directory: /home/cedar/esp/esp-idf/components/esp_rom
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
