@@ -82,3 +82,4 @@
 /home/cedar/ESP-IDF-FIREBASE/build/esp-idf/rt/librt.a
 /home/cedar/ESP-IDF-FIREBASE/build/esp-idf/spiffs/libspiffs.a
 /home/cedar/ESP-IDF-FIREBASE/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/libmain.a

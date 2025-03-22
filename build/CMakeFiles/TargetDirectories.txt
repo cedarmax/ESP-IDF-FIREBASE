@@ -819,3 +819,10 @@
 /home/cedar/ESP-IDF-FIREBASE/build/esp-idf/wifi_provisioning/CMakeFiles/install.dir
 /home/cedar/ESP-IDF-FIREBASE/build/esp-idf/wifi_provisioning/CMakeFiles/install/local.dir
 /home/cedar/ESP-IDF-FIREBASE/build/esp-idf/wifi_provisioning/CMakeFiles/install/strip.dir
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/CMakeFiles/__idf_main.dir
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/CMakeFiles/edit_cache.dir
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/CMakeFiles/rebuild_cache.dir
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/CMakeFiles/list_install_components.dir
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/CMakeFiles/install.dir
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/CMakeFiles/install/local.dir
+/home/cedar/ESP-IDF-FIREBASE/build/esp-idf/main/CMakeFiles/install/strip.dir

@@ -8,7 +8,7 @@
     "idf.toolsPath": "/home/cedar/.espressif",
     "C_Cpp.errorSquiggles": "enabled",
     "idf.pythonInstallPath": "/usr/bin/python",
-    "idf.flashType": "JTAG",
+    "idf.flashType": "UART",
     "idf.customExtraVars": {
         "IDF_TARGET": "esp32c6"
     }
