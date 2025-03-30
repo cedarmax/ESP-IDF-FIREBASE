@@ -12,4 +12,7 @@
 esp_err_t firebase_send_data(const char *path, const char *json);
 esp_err_t firebase_get_data(const char *path, char *response_buffer, size_t buffer_size);
 
+esp_err_t firebase_firestore_get_data(const char *path, char *response_buffer, size_t buffer_size);
+esp_err_t update_switch_state(const char *user_id, int switch_number, bool state);
+
 #endif // FIREBASE_H
