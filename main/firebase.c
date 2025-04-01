@@ -4,8 +4,12 @@
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
 #include "esp_tls.h"
+#include "esp_err.h"
+#include <stdlib.h>
+#include <string.h>
 
 #define TAG "FIREBASE"
+#define RESPONSE_BUFFER_SIZE 4096
 
 // Realtime Database HTTP POST (Send Data)
 esp_err_t firebase_send_data(const char *path, const char *json) {
@@ -66,6 +70,34 @@ esp_err_t firebase_get_data(const char *path, char *response_buffer, size_t buff
 }
 
 // Cloud Firestore HTTP GET (Retrieve Data)
+typedef struct {
+    char *buffer;
+    int buffer_len;
+} client_data_t;
+
+esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
+    client_data_t *client_data = evt->user_data;
+    switch(evt->event_id) {
+        case HTTP_EVENT_ON_DATA:
+            if (!esp_http_client_is_chunked_response(evt->client)) {
+                int prev_len = client_data->buffer_len;
+                char *new_buffer = realloc(client_data->buffer, prev_len + evt->data_len + 1);
+                if (new_buffer == NULL) {
+                    ESP_LOGE(TAG, "Failed to allocate memory in event handler");
+                    return ESP_FAIL;
+                }
+                client_data->buffer = new_buffer;
+                memcpy(client_data->buffer + prev_len, evt->data, evt->data_len);
+                client_data->buffer_len += evt->data_len;
+                client_data->buffer[client_data->buffer_len] = 0;
+            }
+            break;
+        default:
+            break;
+    }
+    return ESP_OK;
+}
+
 esp_err_t firebase_firestore_get_data(const char *path, char *response_buffer, size_t buffer_size) {
     char url[256];
     snprintf(url, sizeof(url), "https://firestore.googleapis.com/v1/projects/solar-control-app/databases/(default)/documents/%s?key=%s",
@@ -73,110 +105,51 @@ esp_err_t firebase_firestore_get_data(const char *path, char *response_buffer, s
 
     ESP_LOGI(TAG, "Firestore GET URL: %s", url);
 
+    // Initialize structure to store response
+    client_data_t client_data;
+    client_data.buffer = malloc(1);
+    client_data.buffer_len = 0;
+    if (client_data.buffer == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate initial memory for response");
+        return ESP_ERR_NO_MEM;
+    }
+    client_data.buffer[0] = '\0';
+
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_GET,
-        .timeout_ms = 20000,  // Increase timeout
+        .timeout_ms = 10000,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .crt_bundle_attach = esp_crt_bundle_attach,
+        .event_handler = _http_event_handler,
+        .user_data = &client_data
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_header(client, "Accept", "application/json");
-    esp_http_client_set_header(client, "Accept-Encoding", "identity");  // Request fixed-length response
 
-    esp_err_t err = ESP_FAIL;
-    int retry_count = 3;
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        int status_code = esp_http_client_get_status_code(client);
+        ESP_LOGI(TAG, "Firestore HTTP Status Code: %d", status_code);
 
-    while (retry_count-- > 0) {
-        err = esp_http_client_perform(client);
-        if (err == ESP_OK) {
-            int status_code = esp_http_client_get_status_code(client);
-            ESP_LOGI(TAG, "Firestore HTTP Status Code: %d", status_code);
-
-            if (status_code == 200) {
-                int content_length = esp_http_client_get_content_length(client);
-                ESP_LOGI(TAG, "Content Length: %d", content_length);
-
-                if (content_length == -1) {
-                    // Handle chunked transfer encoding
-                    ESP_LOGW(TAG, "Content-Length is -1. Reading response as chunked transfer encoding.");
-                    int total_read = 0, read_len;
-                    do {
-                        read_len = esp_http_client_read(client, response_buffer + total_read, buffer_size - 1 - total_read);
-                        if (read_len > 0) {
-                            total_read += read_len;
-                            ESP_LOGI(TAG, "Read %d bytes, Total Read: %d", read_len, total_read);
-                        } else if (read_len == 0) {
-                            ESP_LOGW(TAG, "End of response reached.");
-                            break;
-                        } else {
-                            ESP_LOGE(TAG, "Error reading chunked response: %s", esp_err_to_name(read_len));
-                            err = ESP_FAIL;
-                            break;
-                        }
-                    } while (read_len > 0 && total_read < buffer_size - 1);
-
-                    if (total_read > 0) {
-                        response_buffer[total_read] = '\0';  // Null-terminate
-                        ESP_LOGI(TAG, "Received from Firestore (chunked): %s", response_buffer);
-
-                        // Parse JSON response
-                        cJSON *json = cJSON_Parse(response_buffer);
-                        if (json == NULL) {
-                            ESP_LOGE(TAG, "Failed to parse JSON response");
-                            err = ESP_FAIL;
-                        } else {
-                            // Process JSON data
-                            cJSON_Delete(json);
-                        }
-                    } else {
-                        ESP_LOGE(TAG, "Failed to read response from Firestore (total_read = %d)", total_read);
-                        err = ESP_FAIL;
-                    }
-                } else if (content_length > 0) {
-                    // Handle fixed-length response
-                    int total_read = esp_http_client_read(client, response_buffer, buffer_size - 1);
-                    if (total_read > 0) {
-                        response_buffer[total_read] = '\0';  // Null-terminate
-                        ESP_LOGI(TAG, "Received from Firestore: %s", response_buffer);
-
-                        // Parse JSON response
-                        cJSON *json = cJSON_Parse(response_buffer);
-                        if (json == NULL) {
-                            ESP_LOGE(TAG, "Failed to parse JSON response");
-                            err = ESP_FAIL;
-                        } else {
-                            // Process JSON data
-                            cJSON_Delete(json);
-                        }
-                    } else {
-                        ESP_LOGE(TAG, "Failed to read response from Firestore");
-                        err = ESP_FAIL;
-                    }
-                } else {
-                    ESP_LOGE(TAG, "Empty or invalid response from Firestore");
-                    err = ESP_FAIL;
-                }
-            } else {
-                ESP_LOGE(TAG, "Firestore returned HTTP status %d", status_code);
-                if (status_code == 401) {
-                    ESP_LOGE(TAG, "Authentication failed. Check API key.");
-                } else if (status_code == 404) {
-                    ESP_LOGE(TAG, "Document not found. Check the path.");
-                }
-                err = ESP_FAIL;
-            }
-            break;  // Exit loop on success or valid response
+        if (status_code == 200 && client_data.buffer_len > 0) {
+            strncpy(response_buffer, client_data.buffer, buffer_size - 1);
+            response_buffer[buffer_size - 1] = '\0';
+            ESP_LOGI(TAG, "Received Firestore Response: %s", response_buffer);
         } else {
-            ESP_LOGW(TAG, "Retrying Firestore GET (%d retries left)...", retry_count);
-            vTaskDelay(pdMS_TO_TICKS(1000));  // Wait 1 second before retrying
+            ESP_LOGE(TAG, "Failed to read response from Firestore (total_read = %d)", client_data.buffer_len);
+            err = ESP_FAIL;
         }
+    } else {
+        ESP_LOGE(TAG, "Firestore GET Failed: %s", esp_err_to_name(err));
     }
 
     esp_http_client_cleanup(client);
+    free(client_data.buffer);
     return err;
 }
+
 
 // Cloud Firestore HTTP PATCH (Update Data)
 esp_err_t update_switch_state(const char *user_id, int switch_number, bool state) {
