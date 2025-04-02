@@ -70,6 +70,39 @@ esp_err_t firebase_get_data(const char *path, char *response_buffer, size_t buff
 }
 
 // Cloud Firestore HTTP GET (Retrieve Data)
+esp_err_t client_event_get_handler(esp_http_client_event_handle_t evt)
+{
+    static char *response_buffer = NULL;
+    static int response_len = 0;
+
+    switch (evt->event_id)
+    {
+    case HTTP_EVENT_ON_DATA:
+        if (!esp_http_client_is_chunked_response(evt->client))
+        {
+            char *new_buffer = realloc(response_buffer, response_len + evt->data_len + 1);
+            if (new_buffer == NULL)
+            {
+                ESP_LOGE(TAG, "Failed to allocate memory for response");
+                return ESP_FAIL;
+            }
+            response_buffer = new_buffer;
+            memcpy(response_buffer + response_len, evt->data, evt->data_len);
+            response_len += evt->data_len;
+            response_buffer[response_len] = '\0';
+        }
+        break;
+    case HTTP_EVENT_ON_FINISH:
+        ESP_LOGI(TAG, "Received Firestore Response: %s", response_buffer);
+        free(response_buffer);
+        response_buffer = NULL;
+        response_len = 0;
+        break;
+    default:
+        break;
+    }
+    return ESP_OK;
+}
 typedef struct {
     char *buffer;
     int buffer_len;
@@ -77,6 +110,7 @@ typedef struct {
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     client_data_t *client_data = evt->user_data;
+    ESP_LOGE(TAG, "http event handled trash");
     switch(evt->event_id) {
         case HTTP_EVENT_ON_DATA:
             if (!esp_http_client_is_chunked_response(evt->client)) {
@@ -149,6 +183,7 @@ esp_err_t firebase_firestore_get_data(const char *path, char *response_buffer, s
     free(client_data.buffer);
     return err;
 }
+
 
 
 // Cloud Firestore HTTP PATCH (Update Data)
