@@ -11,6 +11,37 @@
 #define TAG "FIREBASE"
 #define RESPONSE_BUFFER_SIZE 4096
 
+#define JTAG "JSON_PARSE"
+
+void parse_firestore_response(const char *json_str) {
+    cJSON *root = cJSON_Parse(json_str);
+    if (!root) {
+        ESP_LOGE(JTAG, "Failed to parse JSON");
+        return;
+    }
+
+    cJSON *fields = cJSON_GetObjectItem(root, "fields");
+    if (!fields) {
+        ESP_LOGE(JTAG, "No 'fields' object found in JSON");
+        cJSON_Delete(root);
+        return;
+    }
+
+    // Extract switch1
+    cJSON *switch1_obj = cJSON_GetObjectItem(fields, "switch1");
+    bool switch1 = switch1_obj ? cJSON_IsTrue(cJSON_GetObjectItem(switch1_obj, "booleanValue")) : false;
+
+    // Extract switch2
+    cJSON *switch2_obj = cJSON_GetObjectItem(fields, "switch2");
+    bool switch2 = switch2_obj ? cJSON_IsTrue(cJSON_GetObjectItem(switch2_obj, "booleanValue")) : false;
+
+    ESP_LOGI(JTAG, "Parsed Values - switch1: %s, switch2: %s",
+             switch1 ? "true" : "false",
+             switch2 ? "true" : "false");
+
+    cJSON_Delete(root);
+}
+
 // Realtime Database HTTP POST (Send Data)
 esp_err_t firebase_send_data(const char *path, const char *json) {
     char url[256];
@@ -110,10 +141,11 @@ typedef struct {
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     client_data_t *client_data = evt->user_data;
-    ESP_LOGE(TAG, "http event handled trash");
+    //ESP_LOGE(TAG, "http event handled trash");
+    //ESP_LOGE(TAG, "HTTP Request Failed evt->event_id: %d",evt->event_id);
     switch(evt->event_id) {
         case HTTP_EVENT_ON_DATA:
-            if (!esp_http_client_is_chunked_response(evt->client)) {
+            if (true) {
                 int prev_len = client_data->buffer_len;
                 char *new_buffer = realloc(client_data->buffer, prev_len + evt->data_len + 1);
                 if (new_buffer == NULL) {
@@ -122,6 +154,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                 }
                 client_data->buffer = new_buffer;
                 memcpy(client_data->buffer + prev_len, evt->data, evt->data_len);
+                ESP_LOGE(TAG, "buffer len incremented");
                 client_data->buffer_len += evt->data_len;
                 client_data->buffer[client_data->buffer_len] = 0;
             }
@@ -171,6 +204,10 @@ esp_err_t firebase_firestore_get_data(const char *path, char *response_buffer, s
             strncpy(response_buffer, client_data.buffer, buffer_size - 1);
             response_buffer[buffer_size - 1] = '\0';
             ESP_LOGI(TAG, "Received Firestore Response: %s", response_buffer);
+
+            // Parse the Firestore JSON response
+            parse_firestore_response(response_buffer);
+
         } else {
             ESP_LOGE(TAG, "Failed to read response from Firestore (total_read = %d)", client_data.buffer_len);
             err = ESP_FAIL;
@@ -183,8 +220,6 @@ esp_err_t firebase_firestore_get_data(const char *path, char *response_buffer, s
     free(client_data.buffer);
     return err;
 }
-
-
 
 // Cloud Firestore HTTP PATCH (Update Data)
 esp_err_t update_switch_state(const char *user_id, int switch_number, bool state) {
