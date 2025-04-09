@@ -1,4 +1,4 @@
-# Install script for directory: /home/cedar/esp/v5.4/esp-idf
+# Install script for directory: /home/cedar/esp/esp-idf
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

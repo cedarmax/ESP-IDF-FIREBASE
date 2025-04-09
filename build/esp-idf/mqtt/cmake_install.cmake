@@ -1,4 +1,4 @@
-# Install script for directory: /home/cedar/esp/v5.4/esp-idf/components/mqtt
+# Install script for directory: /home/cedar/esp/esp-idf/components/mqtt
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

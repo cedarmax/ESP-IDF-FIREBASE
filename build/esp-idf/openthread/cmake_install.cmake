@@ -1,4 +1,4 @@
-# Install script for directory: /home/cedar/esp/v5.4/esp-idf/components/openthread
+# Install script for directory: /home/cedar/esp/esp-idf/components/openthread
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

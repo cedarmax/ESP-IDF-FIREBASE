@@ -1,0 +1,128 @@
+ESP-ROM:esp32c6-20220919
+Build:Sep 19 2022
+rst:0x1 (POWERON),boot:0xc (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:2
+load:0x40875720,len:0x16b8
+load:0x4086c110,len:0xe84
+load:0x4086e610,len:0x304c
+entry 0x4086c11a
+[0;32mI (23) boot: ESP-IDF v5.4-dirty 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Apr  9 2025 13:18:38[0m
+[0;32mI (24) boot: chip revision: v0.0[0m
+[0;32mI (24) boot: efuse block revision: v0.1[0m
+[0;32mI (27) boot.esp32c6: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c6: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c6: SPI Flash Size : 2MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (65) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (72) boot: End of partition table[0m
+[0;32mI (75) esp_image: segment 0: paddr=00010020 vaddr=420c0020 size=33088h (209032) map[0m
+[0;32mI (121) esp_image: segment 1: paddr=000430b0 vaddr=40800000 size=04f68h ( 20328) load[0m
+[0;32mI (126) esp_image: segment 2: paddr=00048020 vaddr=42000020 size=b8b60h (756576) map[0m
+[0;32mI (266) esp_image: segment 3: paddr=00100b88 vaddr=40804f68 size=14480h ( 83072) load[0m
+[0;32mI (284) esp_image: segment 4: paddr=00115010 vaddr=408193f0 size=03b18h ( 15128) load[0m
+[0;32mI (294) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (295) boot: Disabling RNG early entropy source...[0m
+[0;32mI (304) cpu_start: Unicore app[0m
+[0;32mI (313) cpu_start: Pro cpu start user code[0m
+[0;32mI (313) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (313) app_init: Application information:[0m
+[0;32mI (314) app_init: Project name:     ESP-IDF-FIREBASE[0m
+[0;32mI (318) app_init: App version:      b0c026a-dirty[0m
+[0;32mI (322) app_init: Compile time:     Apr  9 2025 13:18:26[0m
+[0;32mI (327) app_init: ELF file SHA256:  e6392cdb4...[0m
+[0;32mI (332) app_init: ESP-IDF:          v5.4-dirty[0m
+[0;32mI (336) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (340) efuse_init: Max chip rev:     v0.99 [0m
+[0;32mI (344) efuse_init: Chip rev:         v0.0[0m
+[0;32mI (347) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (354) heap_init: At 408228E0 len 00059D30 (359 KiB): RAM[0m
+[0;32mI (359) heap_init: At 4087C610 len 00002F54 (11 KiB): RAM[0m
+[0;32mI (364) heap_init: At 50000000 len 00003FE8 (15 KiB): RTCRAM[0m
+[0;32mI (370) spi_flash: detected chip: generic[0m
+[0;32mI (373) spi_flash: flash io: dio[0m
+[0;33mW (376) spi_flash: Detected size(8192k) larger than the size in the binary image header(2048k). Using the size in the binary image header.[0m
+[0;32mI (389) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (395) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (401) coexist: coex firmware version: 49a8cdc[0m
+[0;32mI (420) coexist: coexist rom version 5b8dcfa[0m
+[0;32mI (420) main_task: Started on CPU0[0m
+[0;32mI (420) main_task: Calling app_main()[0m
+[0;32mI (430) pp: pp rom version: 5b8dcfa[0m
+[0;32mI (430) net80211: net80211 rom version: 5b8dcfa[0m
+[0;32mI (440) wifi:wifi driver task: 4082b7ec, prio:23, stack:6656, core=0[0m
+[0;32mI (440) wifi:wifi firmware version: 48ea317a7[0m
+[0;32mI (440) wifi:wifi certification version: v7.0[0m
+[0;32mI (440) wifi:config NVS flash: enabled[0m
+[0;32mI (440) wifi:config nano formatting: disabled[0m
+[0;32mI (450) wifi:mac_version:HAL_MAC_ESP32AX_761,ut_version:N, band mode:0x1[0m
+[0;32mI (450) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (460) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (460) wifi:Init management short buffer num: 32[0m
+[0;32mI (470) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (470) wifi:Init static tx FG buffer num: 2[0m
+[0;32mI (470) wifi:Init static rx buffer size: 1700 (rxctrl:92, csi:512)[0m
+[0;32mI (480) wifi:Init static rx buffer num: 10[0m
+[0;32mI (480) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (490) wifi_init: rx ba win: 6[0m
+[0;32mI (490) wifi_init: accept mbox: 6[0m
+[0;32mI (490) wifi_init: tcpip mbox: 32[0m
+[0;32mI (500) wifi_init: udp mbox: 6[0m
+[0;32mI (500) wifi_init: tcp mbox: 6[0m
+[0;32mI (500) wifi_init: tcp tx win: 5760[0m
+[0;32mI (510) wifi_init: tcp rx win: 5760[0m
+[0;32mI (510) wifi_init: tcp mss: 1440[0m
+[0;32mI (510) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (520) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (520) wifi_init: WiFi SLP IRAM OP enabled[0m
+[0;33mW (520) wifi:Password length matches WPA2 standards, authmode threshold changes from OPEN to WPA2[0m
+[0;32mI (530) phy_init: phy_version 320,348a293,Sep  3 2024,16:33:12[0m
+[0;33mW (580) phy_init: saving new calibration data because of checksum failure, mode(0)[0m
+[0;33mW (590) wifi:ACK_TAB0   :0x   90a0b, QAM16:0x9 (24Mbps), QPSK:0xa (12Mbps), BPSK:0xb (6Mbps)[0m
+[0;33mW (590) wifi:CTS_TAB0   :0x   90a0b, QAM16:0x9 (24Mbps), QPSK:0xa (12Mbps), BPSK:0xb (6Mbps)[0m
+[0;33mW (600) wifi:(agc)0x600a7128:0xd21ab800, min.avgNF:0xce->0xd2(dB), RCalCount:0x1ab, min.RRssi:0x800(-128.00)[0m
+[0;33mW (610) wifi:(TB)WDEV_PWR_TB_MCS0:19[0m
+[0;33mW (610) wifi:(TB)WDEV_PWR_TB_MCS1:19[0m
+[0;33mW (620) wifi:(TB)WDEV_PWR_TB_MCS2:19[0m
+[0;33mW (620) wifi:(TB)WDEV_PWR_TB_MCS3:19[0m
+[0;33mW (620) wifi:(TB)WDEV_PWR_TB_MCS4:19[0m
+[0;33mW (630) wifi:(TB)WDEV_PWR_TB_MCS5:19[0m
+[0;33mW (630) wifi:(TB)WDEV_PWR_TB_MCS6:18[0m
+[0;33mW (630) wifi:(TB)WDEV_PWR_TB_MCS7:18[0m
+[0;33mW (640) wifi:(TB)WDEV_PWR_TB_MCS8:17[0m
+[0;33mW (640) wifi:(TB)WDEV_PWR_TB_MCS9:15[0m
+[0;33mW (640) wifi:(TB)WDEV_PWR_TB_MCS10:15[0m
+[0;33mW (650) wifi:(TB)WDEV_PWR_TB_MCS11:15[0m
+[0;32mI (650) wifi:11ax coex: WDEVAX_PTI0(0x55777555), WDEVAX_PTI1(0x00003377).[0m
+
+[0;32mI (660) wifi:mode : sta (40:4c:ca:43:9c:60)[0m
+[0;32mI (660) wifi:enable tsf[0m
+[0;32mI (670) wifi:new:<6,0>, old:<1,0>, ap:<255,255>, sta:<6,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (670) wifi:(connect)dot11_authmode:0x3, pairwise_cipher:0x3, group_cipher:0x3[0m
+[0;32mI (680) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (690) wifi:state: auth -> init (0x1c0)[0m
+[0;32mI (700) wifi:new:<6,0>, old:<6,0>, ap:<255,255>, sta:<6,0>, prof:1, snd_ch_cfg:0x0[0m
+[1;31mE (700) WIFI: Disconnected! Retrying...[0m
+[1;31mE (3100) WIFI: Disconnected! Retrying...[0m
+[0;32mI (3120) wifi:new:<6,0>, old:<6,0>, ap:<255,255>, sta:<6,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (3120) wifi:(connect)dot11_authmode:0x3, pairwise_cipher:0x3, group_cipher:0x3[0m
+[0;32mI (3120) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (3130) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (3160) wifi:(assoc)RESP, Extended Capabilities length:1, operating_mode_notification:0[0m
+[0;32mI (3160) wifi:(assoc)RESP, Extended Capabilities, MBSSID:0, TWT Responder:0, OBSS Narrow Bandwidth RU In OFDMA Tolerance:0[0m
+[0;32mI (3160) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (3170) wifi:(trc)phytype:CBW20-SGI, snr:69, maxRate:144, highestRateIdx:0[0m
+[0;33mW (3170) wifi:(trc)band:2G, phymode:3, highestRateIdx:0, lowestRateIdx:11, dataSchedTableSize:14[0m
+[0;32mI (3180) wifi:(trc)band:2G, rate(S-MCS7, rateIdx:0), ampdu(rate:S-MCS7, schedIdx(0, stop:8)), snr:69, ampduState:wait operational[0m
+[0;32mI (3190) wifi:ifidx:0, rssi:-27, nf:-96, phytype(0x3, CBW20-SGI), phymode(0x3, 11bgn), max_rate:144, he:0, vht:0, ht:1[0m
+[0;32mI (3200) wifi:(ht)max.RxAMPDULenExponent:3(65535 bytes), MMSS:4(2 us)[0m
+[0;32mI (3240) wifi:connected with Xcover, aid = 8, channel 6, BW20, bssid = 32:a3:4f:53:89:e9[0m
+[0;32mI (3240) wifi:security: WPA2-PSK, phy:11bgn, rssi:-27, cipher(pairwise:0x3, group:0x3), pmf:0, [0m
+[0;32mI (3240) wifi:pm start, type: 1, twt_start:0[0m
+
+[0;32mI (3250) wifi:pm start, type:1, aid:0x8, 
