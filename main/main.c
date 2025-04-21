@@ -41,6 +41,8 @@ void app_main(void) {
     // Wait for connection
     vTaskDelay(pdMS_TO_TICKS(5000));
 
+    fetch_current_user_id();
+
     //Realtime Database upload test
 
     initialize_sntp();  // Ensure accurate time before Firebase uploads
@@ -50,5 +52,11 @@ void app_main(void) {
 
      // Start Firestore sync tasks
      xTaskCreate(&fetch_firestore_data_task, "fetch_firestore_task", 4096, NULL, 5, NULL);
-     xTaskCreate(&toggle_switch_task, "toggle_switch_task", 4096, NULL, 5, NULL);
+     //xTaskCreate(&toggle_switch_task, "toggle_switch_task", 4096, NULL, 5, NULL);
+
+     //schedule task
+     xTaskCreate(&scheduled_switch_toggle_task, "scheduled_switch_toggle_task", 32768, NULL, 5, NULL);
+
+
+     // voltage: 0%: 11.6% , 12.9 = 100%
 }

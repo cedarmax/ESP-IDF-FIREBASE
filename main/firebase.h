@@ -17,11 +17,18 @@
 esp_err_t firebase_send_data(float battery_voltage);
 esp_err_t cloud_firestore_get_data(const char *path, char *response_buffer, size_t buffer_size);
 esp_err_t update_switch_state(const char *user_id, int switch_number, bool state);
+esp_err_t log_ina260_reading(const char *user_id, float current, float voltage, float power);
+esp_err_t fetch_current_user_id(void);
+
+esp_err_t cloud_firestore_get_collection(const char *collection, const char *document, const char *subcollection, char *response_buffer, size_t buffer_size);
+
 
 // Tasks
 void fetch_firestore_data_task(void *pvParameter);
-void toggle_switch_task(void *pvParameter);
+//void toggle_switch_task(void *pvParameter);
 void upload_battery_task(void *param);  // 
+void scheduled_switch_toggle_task(void *pvParameter);
+
 
 // WiFi event handler
 void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);

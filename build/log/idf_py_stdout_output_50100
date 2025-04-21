@@ -1,7 +1,0 @@
-[1/4] cd /home/cedar/ESP-IDF-FIREBASE/build/esp-idf/esptool_py && /home/cedar/.espressif/python_env/idf5.4_py3.11_env/bin/python /home/cedar/esp/esp-idf/components/partition_table/check_sizes.py --offset 0x8000 partition --type app /home/cedar/ESP-IDF-FIREBASE/build/partition_table/partition-table.bin /home/cedar/ESP-IDF-FIREBASE/build/ESP-IDF-FIREBASE.bin
-ESP-IDF-FIREBASE.bin binary size 0x105590 bytes. Smallest app partition is 0x177000 bytes. 0x71a70 bytes (30%) free.
-[2/4] Performing build step for 'bootloader'
-[1/1] cd /home/cedar/ESP-IDF-FIREBASE/build/bootloader/esp-idf/esptool_py && /home/cedar/.espressif/python_env/idf5.4_py3.11_env/bin/python /home/cedar/esp/esp-idf/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x0 /home/cedar/ESP-IDF-FIREBASE/build/bootloader/bootloader.bin
-Bootloader binary size 0x5570 bytes. 0x2a90 bytes (33%) free.
-[3/4] No install step for 'bootloader'
-[4/4] Completed 'bootloader'

@@ -12,33 +12,73 @@
 #include "esp_wifi.h"
 #include "nvs_flash.h"
 #include "esp_event.h"
-#include "esp_log.h"
 #include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <time.h>
+#include <sys/time.h>
+#include "esp_sntp.h"
 
 #define FTAG "REALTIME DATABASE"
 #define RESPONSE_BUFFER_SIZE 4096
 #define JTAG "JSON_PARSE"
-
-#include "esp_sntp.h"
-
 #define TAG_SNTP "SNTP"
+
+#define FIREBASE_PROJECT_ID "solar-control-app"
+#define FIREBASE_API_KEY "AIzaSyC1i1-XbvHzPnnm1ZRSrZJpEJNuZM70F5U"
+#define FIREBASE_DATABASE_URL "https://solar-control-app-default-rtdb.firebaseio.com/"
 
 //from main:
 
 static const char *TAG = "WIFI";
 static bool switch1_state = false;
 static bool switch2_state = false;
-#define USER_ID "SQSdfpXEHzSEW2WU7pkDBzWIA8i1" 
+//#define USER_ID "SQSdfpXEHzSEW2WU7pkDBzWIA8i1" 
+
+//Function to retrieve the current user ID from Firestore
+char USER_ID[64] = "";  // Global variable to hold current user ID
+
+esp_err_t fetch_current_user_id() {
+    char response_buffer[512];
+    esp_err_t err = cloud_firestore_get_data("current_user/active", response_buffer, sizeof(response_buffer));
+    if (err != ESP_OK) return err;
+
+    cJSON *root = cJSON_Parse(response_buffer);
+    if (!root) return ESP_FAIL;
+
+    cJSON *fields = cJSON_GetObjectItem(root, "fields");
+    if (!fields) {
+        cJSON_Delete(root);
+        return ESP_FAIL;
+    }
+
+    cJSON *userIdObj = cJSON_GetObjectItem(fields, "userId");
+    if (!userIdObj) {
+        cJSON_Delete(root);
+        return ESP_FAIL;
+    }
+
+    cJSON *userIdValue = cJSON_GetObjectItem(userIdObj, "stringValue");
+    if (userIdValue && cJSON_IsString(userIdValue)) {
+        strncpy(USER_ID, userIdValue->valuestring, sizeof(USER_ID) - 1);
+        USER_ID[sizeof(USER_ID) - 1] = '\0';
+        ESP_LOGI(TAG, "Retrieved current user ID: %s", USER_ID);
+    }
+
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
 
 // Function to retrieve and update switch states from Firestore
 void fetch_firestore_data_task(void *pvParameter) {
-    char response_buffer[512];
+    char response_buffer[1024];
 
     while (1) {
         // Retrieve switch states from Firestore
-        esp_err_t err = cloud_firestore_get_data("users/" USER_ID, response_buffer, sizeof(response_buffer));
+        char user_path[128];
+        snprintf(user_path, sizeof(user_path), "users/%s", USER_ID);
+        esp_err_t err = cloud_firestore_get_data(user_path, response_buffer, sizeof(response_buffer));
         if (err == ESP_OK) {
             // Parse JSON response
             cJSON *root = cJSON_Parse(response_buffer);
@@ -69,20 +109,20 @@ void fetch_firestore_data_task(void *pvParameter) {
 }
 
 // Function to simulate switch toggling and update Firestore
-void toggle_switch_task(void *pvParameter) {
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(10000));  // Simulate switch press every 10 seconds
+// void toggle_switch_task(void *pvParameter) {
+//     while (1) {
+//         vTaskDelay(pdMS_TO_TICKS(10000));  // Simulate switch press every 10 seconds
 
-        switch1_state = !switch1_state;
-        switch2_state = !switch2_state;
+//         switch1_state = !switch1_state;
+//         switch2_state = !switch2_state;
 
-        ESP_LOGI("MAIN", "Toggling Switch 1 to: %s", switch1_state ? "ON" : "OFF");
-        update_switch_state(USER_ID, 1, switch1_state);
+//         ESP_LOGI("MAIN", "Toggling Switch 1 to: %s", switch1_state ? "ON" : "OFF");
+//         update_switch_state(USER_ID, 1, switch1_state);
 
-        ESP_LOGI("MAIN", "Toggling Switch 2 to: %s", switch2_state ? "ON" : "OFF");
-        update_switch_state(USER_ID, 2, switch2_state);
-    }
-}
+//         ESP_LOGI("MAIN", "Toggling Switch 2 to: %s", switch2_state ? "ON" : "OFF");
+//         update_switch_state(USER_ID, 2, switch2_state);
+//     }
+// }
 
 void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -154,9 +194,6 @@ void parse_firestore_response(const char *json_str) {
     cJSON_Delete(root);
 }
 
-#include <time.h>
-#include <sys/time.h>
-
 int64_t get_timestamp() {
     struct timeval tv;
     gettimeofday(&tv, NULL);  // Fetch real-time clock
@@ -179,6 +216,11 @@ char* get_iso_timestamp() {
 esp_err_t firebase_send_data(float batteryVoltage) {
     char url[512];
     char json[128];
+    if (USER_ID[0] == '\0') {
+        ESP_LOGE(TAG, "USER_ID is empty. Cannot send data.");
+        return ESP_ERR_INVALID_STATE;
+    }
+    
 
     // Get the current timestamp
     int64_t timestamp = get_timestamp();
@@ -382,4 +424,184 @@ esp_err_t update_switch_state(const char *user_id, int switch_number, bool state
     esp_http_client_cleanup(client);
     return err;
 }
+
+esp_err_t log_ina260_reading(const char *user_id, float current, float voltage, float power) {
+    time_t now = time(NULL);
+
+    char url[512];
+    snprintf(url, sizeof(url), "%s/users/%s/ina260_log/%lld.json?auth=%s",
+    FIREBASE_DATABASE_URL, user_id, (long long)now, FIREBASE_API_KEY);
+
+
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddNumberToObject(json, "current", current);
+    cJSON_AddNumberToObject(json, "voltage", voltage);
+    cJSON_AddNumberToObject(json, "power", power);
+    cJSON_AddNumberToObject(json, "timestamp", now);
+
+    char *post_data = cJSON_PrintUnformatted(json);
+    cJSON_Delete(json);
+
+    esp_http_client_config_t config = {
+        .url = url,
+        .method = HTTP_METHOD_PUT,
+        .timeout_ms = 5000,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI("INA260", "INA260 log sent: %s", post_data);
+    } else {
+        ESP_LOGE("INA260", "Failed to send INA260 log: %s", esp_err_to_name(err));
+    }
+
+    esp_http_client_cleanup(client);
+    free(post_data);
+    return err;
+}
+
+// Function to parse timestamp string from Firestore
+// This function assumes the timestamp is in the format "YYYY-MM-DDTHH:MM:SSZ"
+time_t parse_timestamp(const char *timestamp_str) {
+    struct tm tm;
+    memset(&tm, 0, sizeof(tm));
+    strptime(timestamp_str, "%Y-%m-%dT%H:%M:%SZ", &tm);
+    return mktime(&tm);
+}
+
+#define FIREBASE_AUTH_BEARER "Bearer your_id_token"  // Replace with a real token or inject dynamically
+
+esp_err_t cloud_firestore_get_collection(const char *collection, const char *document, const char *subcollection, char *response_buffer, size_t buffer_size) {
+    char url[512];
+
+    // Construct the Firestore REST API URL for a subcollection
+    snprintf(url, sizeof(url),
+             "https://firestore.googleapis.com/v1/projects/%s/databases/(default)/documents/%s/%s/%s",
+             FIREBASE_PROJECT_ID, collection, document, subcollection);
+
+    esp_http_client_config_t config = {
+        .url = url,
+        .method = HTTP_METHOD_GET,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    // Set headers
+    esp_http_client_set_header(client, "Authorization", FIREBASE_AUTH_BEARER);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+
+    // Perform request
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        int content_length = esp_http_client_get_content_length(client);
+        if (content_length > 0 && content_length < buffer_size) {
+            esp_http_client_read(client, response_buffer, buffer_size - 1);
+            response_buffer[buffer_size - 1] = '\0';  // Null terminate
+        } else {
+            ESP_LOGE(TAG, "Response too large or empty");
+            err = ESP_FAIL;
+        }
+    } else {
+        ESP_LOGE(TAG, "HTTP GET failed: %s", esp_err_to_name(err));
+    }
+
+    esp_http_client_cleanup(client);
+    return err;
+}
+
+
+// Function to toggle switches based on schedule
+// This function will run in a FreeRTOS task and check the schedule every minute
+// It will toggle the switches based on the schedule retrieved from Firestore
+void scheduled_switch_toggle_task(void *pvParameter) {
+    char response_buffer[4096];
+    bool toggled_today[24 * 60 * 2] = {0}; // extra space for multiple switches per minute
+
+    while (1) {
+        if (USER_ID[0] == '\0') {
+            vTaskDelay(pdMS_TO_TICKS(10000));
+            continue;
+        }
+
+        if (cloud_firestore_get_collection("users", USER_ID, "schedules", response_buffer, sizeof(response_buffer)) != ESP_OK) {
+            vTaskDelay(pdMS_TO_TICKS(30000));
+            continue;
+        }
+
+        cJSON *root = cJSON_Parse(response_buffer);
+        if (!root || !cJSON_IsArray(root)) {
+            cJSON_Delete(root);
+            vTaskDelay(pdMS_TO_TICKS(30000));
+            continue;
+        }
+
+        time_t now = time(NULL);
+        struct tm current_tm;
+        localtime_r(&now, &current_tm);
+
+        for (int i = 0; i < cJSON_GetArraySize(root); i++) {
+            cJSON *doc = cJSON_GetArrayItem(root, i);
+            if (!doc) continue;
+
+            cJSON *fields = cJSON_GetObjectItem(doc, "fields");
+            if (!fields) continue;
+
+            cJSON *switchItem = cJSON_GetObjectItem(fields, "switch");
+            cJSON *turnOnItem = cJSON_GetObjectItem(fields, "turnOn");
+            cJSON *timeItem = cJSON_GetObjectItem(fields, "time");
+            if (!switchItem || !turnOnItem || !timeItem) continue;
+
+            int switchIndex = cJSON_GetObjectItem(switchItem, "integerValue") ?
+                              atoi(cJSON_GetObjectItem(switchItem, "integerValue")->valuestring) : 0;
+
+            bool turnOn = cJSON_GetObjectItem(turnOnItem, "booleanValue") ?
+                          cJSON_IsTrue(cJSON_GetObjectItem(turnOnItem, "booleanValue")) : false;
+
+            time_t schedule_time = cJSON_GetObjectItem(timeItem, "timestampValue") ?
+                                   parse_timestamp(cJSON_GetObjectItem(timeItem, "timestampValue")->valuestring) : 0;
+
+            if (schedule_time == 0) continue;
+
+            struct tm schedule_tm;
+            localtime_r(&schedule_time, &schedule_tm);
+
+            if (schedule_tm.tm_year == current_tm.tm_year &&
+                schedule_tm.tm_mon == current_tm.tm_mon &&
+                schedule_tm.tm_mday == current_tm.tm_mday &&
+                schedule_tm.tm_hour == current_tm.tm_hour &&
+                schedule_tm.tm_min == current_tm.tm_min) {
+
+                int toggle_key = switchIndex * 1440 + schedule_tm.tm_hour * 60 + schedule_tm.tm_min;
+
+                if (!toggled_today[toggle_key]) {
+                    if (switchIndex == 1 && switch1_state != turnOn) {
+                        switch1_state = turnOn;
+                        update_switch_state(USER_ID, 1, switch1_state);
+                    } else if (switchIndex == 2 && switch2_state != turnOn) {
+                        switch2_state = turnOn;
+                        update_switch_state(USER_ID, 2, switch2_state);
+                    }
+                    toggled_today[toggle_key] = true;
+                }
+            }
+        }
+
+        // Reset at midnight
+        if (current_tm.tm_hour == 0 && current_tm.tm_min == 0) {
+            memset(toggled_today, 0, sizeof(toggled_today));
+        }
+
+        cJSON_Delete(root);
+        vTaskDelay(pdMS_TO_TICKS(60000)); // check every minute
+    }
+}
+
+
+
 
