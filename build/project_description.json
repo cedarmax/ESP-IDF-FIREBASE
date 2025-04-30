@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "ESP-IDF-FIREBASE",
-    "project_version":    "e22b824-dirty",
+    "project_version":    "6351f88-dirty",
     "project_path":       "/home/cedar/ESP-IDF-FIREBASE",
     "idf_path":           "/home/cedar/esp/v5.4/esp-idf",
     "build_dir":          "/home/cedar/ESP-IDF-FIREBASE/build",

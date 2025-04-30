@@ -28,12 +28,9 @@
 #define FIREBASE_API_KEY "AIzaSyC1i1-XbvHzPnnm1ZRSrZJpEJNuZM70F5U"
 #define FIREBASE_DATABASE_URL "https://solar-control-app-default-rtdb.firebaseio.com/"
 
-//from main:
-
 static const char *TAG = "WIFI";
 static bool switch1_state = false;
 static bool switch2_state = false;
-//#define USER_ID "SQSdfpXEHzSEW2WU7pkDBzWIA8i1" 
 
 //Function to retrieve the current user ID from Firestore
 char USER_ID[64] = "";  // Global variable to hold current user ID
@@ -69,6 +66,23 @@ esp_err_t fetch_current_user_id() {
     return ESP_OK;
 }
 
+void monitor_user_id_task(void *pvParameter) {
+    char last_user_id[128] = {0};
+
+    while (1) {
+        if (fetch_current_user_id() == ESP_OK) {
+            if (strcmp(USER_ID, last_user_id) != 0) {
+                ESP_LOGI(TAG, "Detected change in user ID: %s", USER_ID);
+                strncpy(last_user_id, USER_ID, sizeof(last_user_id) - 1);
+                last_user_id[sizeof(last_user_id) - 1] = '\0';
+            }
+        } else {
+            ESP_LOGW(TAG, "Failed to fetch current user ID.");
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(10000)); // check every 10 seconds
+    }
+}
 
 // Function to retrieve and update switch states from Firestore
 void fetch_firestore_data_task(void *pvParameter) {
@@ -79,50 +93,45 @@ void fetch_firestore_data_task(void *pvParameter) {
         char user_path[128];
         snprintf(user_path, sizeof(user_path), "users/%s", USER_ID);
         esp_err_t err = cloud_firestore_get_data(user_path, response_buffer, sizeof(response_buffer));
-        if (err == ESP_OK) {
-            // Parse JSON response
-            cJSON *root = cJSON_Parse(response_buffer);
-            if (root != NULL) {
-                cJSON *fields = cJSON_GetObjectItem(root, "fields");
-
-                if (fields) {
-                    cJSON *switch1 = cJSON_GetObjectItem(fields, "switch1");
-                    cJSON *switch2 = cJSON_GetObjectItem(fields, "switch2");
-
-                    if (switch1 && cJSON_IsBool(switch1)) {
-                        switch1_state = cJSON_IsTrue(switch1);
-                        ESP_LOGI("MAIN", "Switch 1: %s", switch1_state ? "ON" : "OFF");
-                    }
-
-                    if (switch2 && cJSON_IsBool(switch2)) {
-                        switch2_state = cJSON_IsTrue(switch2);
-                        ESP_LOGI("MAIN", "Switch 2: %s", switch2_state ? "ON" : "OFF");
-                    }
-                }
-
-                cJSON_Delete(root);
-            }
+        if (err != ESP_OK) {
+            ESP_LOGE("MAIN", "Failed to fetch Firestore data");
+            vTaskDelay(pdMS_TO_TICKS(5000));  // Retry after 5 seconds
+            continue;
+        }
+        
+        // Parse JSON response
+        cJSON *root = cJSON_Parse(response_buffer);
+        if (!root) {
+            ESP_LOGE("MAIN", "Failed to parse Firestore JSON");
+            vTaskDelay(pdMS_TO_TICKS(5000));  // Retry after 5 seconds
+            continue;
+        }
+        
+        cJSON *fields = cJSON_GetObjectItem(root, "fields");
+        if (!fields) {
+            ESP_LOGE("MAIN", "No fields found in Firestore data");
+            cJSON_Delete(root);
+            vTaskDelay(pdMS_TO_TICKS(5000));  // Retry after 5 seconds
+            continue;
         }
 
+        // Update switch states safely
+        cJSON *switch1 = cJSON_GetObjectItem(fields, "switch1");
+        if (switch1 && cJSON_IsBool(switch1)) {
+            switch1_state = cJSON_IsTrue(switch1);
+            ESP_LOGI("MAIN", "Switch 1: %s", switch1_state ? "ON" : "OFF");
+        }
+
+        cJSON *switch2 = cJSON_GetObjectItem(fields, "switch2");
+        if (switch2 && cJSON_IsBool(switch2)) {
+            switch2_state = cJSON_IsTrue(switch2);
+            ESP_LOGI("MAIN", "Switch 2: %s", switch2_state ? "ON" : "OFF");
+        }
+
+        cJSON_Delete(root);
         vTaskDelay(pdMS_TO_TICKS(5000));  // Fetch data every 5 seconds
     }
 }
-
-// Function to simulate switch toggling and update Firestore
-// void toggle_switch_task(void *pvParameter) {
-//     while (1) {
-//         vTaskDelay(pdMS_TO_TICKS(10000));  // Simulate switch press every 10 seconds
-
-//         switch1_state = !switch1_state;
-//         switch2_state = !switch2_state;
-
-//         ESP_LOGI("MAIN", "Toggling Switch 1 to: %s", switch1_state ? "ON" : "OFF");
-//         update_switch_state(USER_ID, 1, switch1_state);
-
-//         ESP_LOGI("MAIN", "Toggling Switch 2 to: %s", switch2_state ? "ON" : "OFF");
-//         update_switch_state(USER_ID, 2, switch2_state);
-//     }
-// }
 
 void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -135,14 +144,12 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
     }
 }
 
-//end from main
-
 void initialize_sntp() {
     ESP_LOGI(TAG_SNTP, "Initializing SNTP");
 
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");  // Set NTP server
-    sntp_init();
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");  // Set NTP server
+    esp_sntp_init();
 
     // Wait for time to be set
     time_t now = 0;
@@ -163,7 +170,6 @@ void initialize_sntp() {
         ESP_LOGI(TAG_SNTP, "SNTP Time Synchronized: %s", asctime(&timeinfo));
     }
 }
-
 
 void parse_firestore_response(const char *json_str) {
     cJSON *root = cJSON_Parse(json_str);
@@ -186,6 +192,26 @@ void parse_firestore_response(const char *json_str) {
     // Extract switch2
     cJSON *switch2_obj = cJSON_GetObjectItem(fields, "switch2");
     bool switch2 = switch2_obj ? cJSON_IsTrue(cJSON_GetObjectItem(switch2_obj, "booleanValue")) : false;
+
+    // --- Parse schedule map ---
+    cJSON *schedule_obj = cJSON_GetObjectItem(fields, "schedule");
+    if (schedule_obj) {
+        cJSON *mapValue = cJSON_GetObjectItem(schedule_obj, "mapValue");
+        if (mapValue) {
+            cJSON *schedule_fields = cJSON_GetObjectItem(mapValue, "fields");
+            if (schedule_fields) {
+                cJSON *item = NULL;
+                cJSON_ArrayForEach(item, schedule_fields) {
+                    const char *key = item->string;
+                    cJSON *valueObj = cJSON_GetObjectItem(item, "stringValue");
+                    if (key && valueObj && cJSON_IsString(valueObj)) {
+                        ESP_LOGI(JTAG, "Schedule - %s: %s", key, valueObj->valuestring);
+                        // Here you can save or act on each time
+                    }
+                }
+            }
+        }
+    }
 
     ESP_LOGI(JTAG, "Parsed Values - switch1: %s, switch2: %s",
              switch1 ? "true" : "false",
@@ -221,7 +247,6 @@ esp_err_t firebase_send_data(float batteryVoltage) {
         return ESP_ERR_INVALID_STATE;
     }
     
-
     // Get the current timestamp
     int64_t timestamp = get_timestamp();
     snprintf(json, sizeof(json), "{\"%lld\": {\"batteryVoltage\": %.2f}}", timestamp, batteryVoltage);
@@ -249,25 +274,6 @@ esp_err_t firebase_send_data(float batteryVoltage) {
 
     esp_http_client_cleanup(client);
     return err;
-}
-
-//test function to continuously send graph data to realtime database
-void upload_battery_task(void *param) {
-    // Seed random number generator once
-    srand((unsigned int)time(NULL));
-
-    while (1) {
-        // Random float between 12.0 and 14.0
-        float voltage = 12.0f + ((float)rand() / RAND_MAX) * 2.0f;
-
-        if (firebase_send_data(voltage) == ESP_OK) {
-            ESP_LOGI("Realtime Database", "Uploaded voltage: %.2f", voltage);
-        } else {
-            ESP_LOGE("Realtime Database", "Upload failed!");
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(5000));  // Wait 5 seconds
-    }
 }
 
 // Cloud Firestore HTTP GET (Retrieve Data)
@@ -475,133 +481,175 @@ time_t parse_timestamp(const char *timestamp_str) {
     return mktime(&tm);
 }
 
-#define FIREBASE_AUTH_BEARER "Bearer your_id_token"  // Replace with a real token or inject dynamically
+bool cloud_firestore_get_collection(const char* project_id, const char* collection, const char* api_key, void (*callback)(const cJSON*)) {
+    if (!project_id || !collection || !api_key || !callback) {
+        ESP_LOGE(TAG, "Invalid parameters for Firestore GET");
+        return false;
+    }
 
-esp_err_t cloud_firestore_get_collection(const char *collection, const char *document, const char *subcollection, char *response_buffer, size_t buffer_size) {
     char url[512];
-
-    // Construct the Firestore REST API URL for a subcollection
     snprintf(url, sizeof(url),
-             "https://firestore.googleapis.com/v1/projects/%s/databases/(default)/documents/%s/%s/%s",
-             FIREBASE_PROJECT_ID, collection, document, subcollection);
+             "https://firestore.googleapis.com/v1/projects/%s/databases/(default)/documents/%s?key=%s",
+             project_id, collection, api_key);
 
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_GET,
+        .timeout_ms = 5000,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
-
-    // Set headers
-    esp_http_client_set_header(client, "Authorization", FIREBASE_AUTH_BEARER);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-
-    // Perform request
-    esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
-        int content_length = esp_http_client_get_content_length(client);
-        if (content_length > 0 && content_length < buffer_size) {
-            esp_http_client_read(client, response_buffer, buffer_size - 1);
-            response_buffer[buffer_size - 1] = '\0';  // Null terminate
-        } else {
-            ESP_LOGE(TAG, "Response too large or empty");
-            err = ESP_FAIL;
-        }
-    } else {
-        ESP_LOGE(TAG, "HTTP GET failed: %s", esp_err_to_name(err));
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        return false;
     }
 
+    esp_err_t err = esp_http_client_perform(client);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        return false;
+    }
+
+    int status_code = esp_http_client_get_status_code(client);
+    if (status_code != 200) {
+        ESP_LOGE(TAG, "Firestore request failed with HTTP status %d", status_code);
+        esp_http_client_cleanup(client);
+        return false;
+    }
+
+    int content_length = esp_http_client_get_content_length(client);
+    char* response = malloc(content_length + 1);
+    if (!response) {
+        ESP_LOGE(TAG, "Memory allocation failed");
+        esp_http_client_cleanup(client);
+        return false;
+    }
+
+    int read_len = esp_http_client_read_response(client, response, content_length);
+    response[read_len] = '\0';
+
+    cJSON* json = cJSON_Parse(response);
+    if (json == NULL) {
+        ESP_LOGE(TAG, "Failed to parse JSON response");
+        free(response);
+        esp_http_client_cleanup(client);
+        return false;
+    }
+
+    callback(json);
+
+    cJSON_Delete(json);
+    free(response);
     esp_http_client_cleanup(client);
-    return err;
+    return true;
 }
+
 
 
 // Function to toggle switches based on schedule
 // This function will run in a FreeRTOS task and check the schedule every minute
 // It will toggle the switches based on the schedule retrieved from Firestore
-void scheduled_switch_toggle_task(void *pvParameter) {
-    char response_buffer[4096];
-    bool toggled_today[24 * 60 * 2] = {0}; // extra space for multiple switches per minute
+#include "esp_log.h"
 
+static const char *STAG = "SCHEDULE_TOGGLE";
+
+void schedule_callback(const cJSON* root) {
+    static bool toggled_today[24 * 60 * 2] = {0}; // extra space for multiple switches per minute
+
+    if (!root || !cJSON_IsObject(root)) {
+        ESP_LOGE(STAG, "Invalid JSON response.");
+        return;
+    }
+
+    cJSON *documents = cJSON_GetObjectItem(root, "documents");
+    if (!documents || !cJSON_IsArray(documents)) {
+        ESP_LOGE(STAG, "No documents found in Firestore response.");
+        return;
+    }
+
+    time_t now = time(NULL);
+    struct tm current_tm;
+    localtime_r(&now, &current_tm);
+
+    for (int i = 0; i < cJSON_GetArraySize(documents); i++) {
+        cJSON *doc = cJSON_GetArrayItem(documents, i);
+        if (!doc) continue;
+
+        cJSON *fields = cJSON_GetObjectItem(doc, "fields");
+        if (!fields) continue;
+
+        cJSON *switchItem = cJSON_GetObjectItem(fields, "switch");
+        cJSON *turnOnItem = cJSON_GetObjectItem(fields, "turnOn");
+        cJSON *timeItem = cJSON_GetObjectItem(fields, "time");
+        if (!switchItem || !turnOnItem || !timeItem) continue;
+
+        int switchIndex = cJSON_GetObjectItem(switchItem, "integerValue") ?
+                          atoi(cJSON_GetObjectItem(switchItem, "integerValue")->valuestring) : 0;
+
+        bool turnOn = cJSON_GetObjectItem(turnOnItem, "booleanValue") ?
+                      cJSON_IsTrue(cJSON_GetObjectItem(turnOnItem, "booleanValue")) : false;
+
+        time_t schedule_time = cJSON_GetObjectItem(timeItem, "timestampValue") ?
+                               parse_timestamp(cJSON_GetObjectItem(timeItem, "timestampValue")->valuestring) : 0;
+
+        if (schedule_time == 0) continue;
+
+        struct tm schedule_tm;
+        localtime_r(&schedule_time, &schedule_tm);
+
+        if (schedule_tm.tm_year == current_tm.tm_year &&
+            schedule_tm.tm_mon == current_tm.tm_mon &&
+            schedule_tm.tm_mday == current_tm.tm_mday &&
+            schedule_tm.tm_hour == current_tm.tm_hour &&
+            schedule_tm.tm_min == current_tm.tm_min) {
+
+            int toggle_key = switchIndex * 1440 + schedule_tm.tm_hour * 60 + schedule_tm.tm_min;
+
+            if (!toggled_today[toggle_key]) {
+                ESP_LOGI(STAG, "Scheduled match: switch %d at %02d:%02d, turning %s.",
+                         switchIndex, schedule_tm.tm_hour, schedule_tm.tm_min, turnOn ? "ON" : "OFF");
+
+                if (switchIndex == 1 && switch1_state != turnOn) {
+                    switch1_state = turnOn;
+                    update_switch_state(USER_ID, 1, switch1_state);
+                } else if (switchIndex == 2 && switch2_state != turnOn) {
+                    switch2_state = turnOn;
+                    update_switch_state(USER_ID, 2, switch2_state);
+                }
+
+                toggled_today[toggle_key] = true;
+            } else {
+                ESP_LOGI(STAG, "Switch %d already toggled at %02d:%02d. Skipping.",
+                         switchIndex, schedule_tm.tm_hour, schedule_tm.tm_min);
+            }
+        }
+    }
+
+    // Reset at midnight
+    if (current_tm.tm_hour == 0 && current_tm.tm_min == 0) {
+        ESP_LOGI(STAG, "Midnight reset: clearing toggle history.");
+        memset(toggled_today, 0, sizeof(toggled_today));
+    }
+}
+
+void scheduled_switch_toggle_task(void *pvParameter) {
     while (1) {
         if (USER_ID[0] == '\0') {
+            ESP_LOGW(STAG, "USER_ID not set. Retrying in 10 seconds.");
             vTaskDelay(pdMS_TO_TICKS(10000));
             continue;
         }
 
-        if (cloud_firestore_get_collection("users", USER_ID, "schedules", response_buffer, sizeof(response_buffer)) != ESP_OK) {
-            vTaskDelay(pdMS_TO_TICKS(30000));
-            continue;
+        ESP_LOGI(STAG, "Fetching schedule for user: %s", USER_ID);
+
+        char path[128];
+        snprintf(path, sizeof(path), "users/%s/schedules", USER_ID);
+
+        if (!cloud_firestore_get_collection(FIREBASE_PROJECT_ID, path, FIREBASE_API_KEY, schedule_callback)) {
+            ESP_LOGE(STAG, "Failed to fetch schedules.");
         }
 
-        cJSON *root = cJSON_Parse(response_buffer);
-        if (!root || !cJSON_IsArray(root)) {
-            cJSON_Delete(root);
-            vTaskDelay(pdMS_TO_TICKS(30000));
-            continue;
-        }
-
-        time_t now = time(NULL);
-        struct tm current_tm;
-        localtime_r(&now, &current_tm);
-
-        for (int i = 0; i < cJSON_GetArraySize(root); i++) {
-            cJSON *doc = cJSON_GetArrayItem(root, i);
-            if (!doc) continue;
-
-            cJSON *fields = cJSON_GetObjectItem(doc, "fields");
-            if (!fields) continue;
-
-            cJSON *switchItem = cJSON_GetObjectItem(fields, "switch");
-            cJSON *turnOnItem = cJSON_GetObjectItem(fields, "turnOn");
-            cJSON *timeItem = cJSON_GetObjectItem(fields, "time");
-            if (!switchItem || !turnOnItem || !timeItem) continue;
-
-            int switchIndex = cJSON_GetObjectItem(switchItem, "integerValue") ?
-                              atoi(cJSON_GetObjectItem(switchItem, "integerValue")->valuestring) : 0;
-
-            bool turnOn = cJSON_GetObjectItem(turnOnItem, "booleanValue") ?
-                          cJSON_IsTrue(cJSON_GetObjectItem(turnOnItem, "booleanValue")) : false;
-
-            time_t schedule_time = cJSON_GetObjectItem(timeItem, "timestampValue") ?
-                                   parse_timestamp(cJSON_GetObjectItem(timeItem, "timestampValue")->valuestring) : 0;
-
-            if (schedule_time == 0) continue;
-
-            struct tm schedule_tm;
-            localtime_r(&schedule_time, &schedule_tm);
-
-            if (schedule_tm.tm_year == current_tm.tm_year &&
-                schedule_tm.tm_mon == current_tm.tm_mon &&
-                schedule_tm.tm_mday == current_tm.tm_mday &&
-                schedule_tm.tm_hour == current_tm.tm_hour &&
-                schedule_tm.tm_min == current_tm.tm_min) {
-
-                int toggle_key = switchIndex * 1440 + schedule_tm.tm_hour * 60 + schedule_tm.tm_min;
-
-                if (!toggled_today[toggle_key]) {
-                    if (switchIndex == 1 && switch1_state != turnOn) {
-                        switch1_state = turnOn;
-                        update_switch_state(USER_ID, 1, switch1_state);
-                    } else if (switchIndex == 2 && switch2_state != turnOn) {
-                        switch2_state = turnOn;
-                        update_switch_state(USER_ID, 2, switch2_state);
-                    }
-                    toggled_today[toggle_key] = true;
-                }
-            }
-        }
-
-        // Reset at midnight
-        if (current_tm.tm_hour == 0 && current_tm.tm_min == 0) {
-            memset(toggled_today, 0, sizeof(toggled_today));
-        }
-
-        cJSON_Delete(root);
-        vTaskDelay(pdMS_TO_TICKS(60000)); // check every minute
+        vTaskDelay(pdMS_TO_TICKS(60000)); // wait a minute between checks
     }
 }
-
-
-
-
